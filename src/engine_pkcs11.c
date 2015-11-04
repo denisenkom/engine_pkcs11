@@ -745,12 +745,20 @@ int load_cert_ctrl(ENGINE * e, void *p)
  */
 static int pkcs11_login(PKCS11_SLOT *slot, PKCS11_TOKEN *tok, UI_METHOD *ui_method, void *callback_data)
 {
+	int logged_in = 0;
 	if (tok->loginRequired) {
+		/* check if we already logged in
+         * ignore errors, assume not logged in if there is error
+         */
+		PKCS11_is_logged_in(slot, 0, &logged_in);
+		if (logged_in) {
+			return 1;
+		}
 		/* If the token has a secure login (i.e., an external keypad),
 		   then use a NULL pin. Otherwise, check if a PIN exists. If
 		   not, allocate and obtain a new PIN. */
 		if (tok->secureLogin) {
-			/* Free the PIN if it has already been 
+			/* Free the PIN if it has already been
 			   assigned (i.e, cached by get_pin) */
 			zero_pin();
 		} else if (pin == NULL) {
@@ -771,11 +779,11 @@ static int pkcs11_login(PKCS11_SLOT *slot, PKCS11_TOKEN *tok, UI_METHOD *ui_meth
 			zero_pin();
 			fail0("Login failed\n");
 		}
-		/* Login successful, PIN retained in case further logins are 
+		/* Login successful, PIN retained in case further logins are
 		   required. This will occur on subsequent calls to the
 		   pkcs11_load_key function. Subsequent login calls should be
 		   relatively fast (the token should maintain its own login
-		   state), although there may still be a slight performance 
+		   state), although there may still be a slight performance
 		   penalty. We could maintain state noting that successful
 		   login has been performed, but this state may not be updated
 		   if the token is removed and reinserted between calls. It
